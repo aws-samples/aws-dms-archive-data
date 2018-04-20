@@ -1,0 +1,510 @@
+{
+"AWSTemplateFormatVersion" : "2010-09-09",
+"Description" : "Create resources for Glacier Select blog.",
+
+"Parameters" : {
+
+    "BucketName": {
+      "Description" : "Enter the S3 bucket name",
+      "Type": "String",
+      "MinLength": "4",
+      "MaxLength": "63",
+      "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9-]*",
+      "ConstraintDescription" : "Must be unique and begin with a letter and contain a minimum of 4 alphanumeric characters."
+    },
+
+    "VaultName": {
+        "Description" : "Enter the Glacier Vault name",
+        "Type": "String",
+        "MinLength": "4",
+        "MaxLength": "63",
+        "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9-]*",
+        "ConstraintDescription" : "Please enter the name of the Glacier vault you created in the previous step."
+      },
+
+    "RDSDBName": {
+        "Default": "ukdb",
+        "Description" : "Enter PostgreSQL Database name",
+        "Type": "String",
+        "MinLength": "4",
+        "MaxLength": "63",
+        "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9-]*",
+        "ConstraintDescription" : "must begin with a letter and contain a minimum of 4 alphanumeric characters."
+      },
+
+    "RDSDBInstanceIdentifier": {
+        "Default": "archivedb",
+        "Description" : "Enter a name for your PostgreSQL Database identifier",
+        "Type": "String",
+        "MinLength": "4",
+        "MaxLength": "63",
+        "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9-]*",
+        "ConstraintDescription" : "Must begin with a letter and contain a minimum of 4 alphanumeric characters."
+    },
+  
+    "RDSDBUsername": {
+        "Default": "dbadmin",
+        "NoEcho": "false",
+        "Description" : "Enter database Admin username for RDS PostgreSQL",
+        "Type": "String",
+        "MinLength": "4",
+        "MaxLength": "16",
+        "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9-]*",
+        "ConstraintDescription" : "Must begin with a letter and contain a minimum of 4 alphanumeric characters."
+      },
+
+      "RDSDBPassword": {
+        "Default": "postgres123",
+        "NoEcho": "true",
+        "Description" : "Enter password for RDS PostgreSQL Admin user",
+        "Type": "String",
+        "MinLength": "8",
+        "MaxLength": "41",
+        "AllowedPattern" : "[a-zA-Z0-9]*",
+        "ConstraintDescription" : "Must contain only alphanumeric characters with minimum of 8 characters."
+      },
+  
+      "RDSInstanceType":{
+         "Description":"RDS PostgreSQL DB instance type",
+         "Type":"String",
+         "Default":"db.t2.medium",
+         "AllowedValues":[ "db.t2.small", "db.t2.medium"],
+         "ConstraintDescription":"Must be a valid RDS PostgreSQL instance type."
+      },
+  
+    "RDSDBStorage": {
+        "Default": "20",
+        "NoEcho": "false",
+        "Description" : "Enter storage for Postgres DB in GB",
+        "Type": "Number",
+        "MaxValue": "6000",
+        "MinValue": "10",
+        "ConstraintDescription" : "Must contain only numberic and less than 6000 GB."
+    },
+
+    "ClientIP" : {
+        "Description" : "The IP address range that can be used to connect to the RDS instances from your local machine.It must be a valid IP CIDR range of the form x.x.x.x/x.Pls get your address using checkip.amazonaws.com or whatsmyip.org",
+        "Type": "String",
+        "MinLength": "9",
+        "MaxLength": "18",
+        "Default": "0.0.0.0/0",
+        "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+        "ConstraintDescription": "It must be a valid IP CIDR range of the form x.x.x.x/x. Suggest to enable access to your address only. Pls get your address using checkip.amazonaws.com or whatsmyip.org."
+     },
+  
+    "DMSName": {
+        "Default": "rds-to-s3",
+        "Description" : "Enter DMS Replication instance name",
+        "Type": "String",
+        "MinLength": "4",
+        "MaxLength": "63",
+        "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9-]*",
+        "ConstraintDescription" : "must begin with a letter and contain a minimum of 4 alphanumeric characters."
+    },
+
+    "DMSS3PolicyName": {
+        "Default": "dmsvpcs3policy",
+        "Description" : "Enter DMS Policy name",
+        "Type": "String",
+        "MinLength": "4",
+        "MaxLength": "63",
+        "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9-]*",
+        "ConstraintDescription" : "must begin with a letter and contain a minimum of 4 alphanumeric characters."
+    },
+
+    "DMSS3RoleName": {
+        "Default": "dms-vpc-role",
+        "Description" : "Enter DMS Role name",
+        "Type": "String",
+        "MinLength": "4",
+        "MaxLength": "63",
+        "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9-]*",
+        "ConstraintDescription" : "must begin with a letter and contain a minimum of 4 alphanumeric characters."
+    },
+    
+    "LambdaArchivalPolicyName": {
+        "Default": "lambda-to-archive-policy",
+        "Description" : "Enter Lambda archival Policy name",
+        "Type": "String",
+        "MinLength": "4",
+        "MaxLength": "63",
+        "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9-]*",
+        "ConstraintDescription" : "must begin with a letter and contain a minimum of 4 alphanumeric characters."
+    },
+
+    "LambdaArchivalRoleName": {
+        "Default": "rdsarchive-lambda-execution",
+        "Description" : "Enter Lambda Archival Role name",
+        "Type": "String",
+        "MinLength": "4",
+        "MaxLength": "63",
+        "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9-]*",
+        "ConstraintDescription" : "must begin with a letter and contain a minimum of 4 alphanumeric characters."
+    }
+
+},
+
+"Mappings":
+{
+    "RDSEngineVersion" :
+   {
+        "us-east-1"         : {"ver" : "9.6.5"},
+        "us-west-1"         : {"ver" : "9.6.5"},
+        "us-west-2"         : {"ver" : "9.6.5"},
+        "ap-northeast-1"    : {"ver" : "9.6.5"},
+        "ap-northeast-2"    : {"ver" : "9.6.5"},
+        "ap-southeast-1"    : {"ver" : "9.6.5"},
+        "ap-southeast-2"    : {"ver" : "9.6.5"},
+        "eu-west-1"         : {"ver" : "9.6.5"},
+        "eu-central-1"      : {"ver" : "9.6.5"},
+        "sa-east-1"         : {"ver" : "9.6.5"},
+        "us-gov-west-1"     : {"ver" : "9.6.5"},
+        "ap-south-1"        : {"ver" : "9.6.5"}
+    }
+},
+
+"Resources" : {
+    "VPC" : {
+        "Type" : "AWS::EC2::VPC",
+        "Properties" : {
+            "CidrBlock" : "10.0.0.0/24",
+            "EnableDnsSupport" : "true",
+            "EnableDnsHostnames" : "true",
+            "Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"}},
+                      {"Key" : "Name", "Value" : { "Ref" : "AWS::StackName"}}]
+  
+        }
+      },
+  
+      "DBSubnet1" : {
+        "Type" : "AWS::EC2::Subnet",
+        "Properties" : {
+          "VpcId" : { "Ref" : "VPC" },
+          "CidrBlock" : "10.0.0.0/26",
+          "AvailabilityZone" : { "Fn::Select" : [ "0", { "Fn::GetAZs" : "" } ] },
+          "Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} } ]
+        }
+      },
+  
+      "DBSubnet2" : {
+        "Type" : "AWS::EC2::Subnet",
+        "Properties" : {
+          "VpcId" : { "Ref" : "VPC" },
+          "CidrBlock" : "10.0.0.64/26",
+          "AvailabilityZone" : { "Fn::Select" : [ "1", { "Fn::GetAZs" : "" } ] },
+          "Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} } ]
+        }
+      },
+  
+      "InternetGateway" : {
+        "Type" : "AWS::EC2::InternetGateway",
+        "Properties" : {
+          "Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} } ]
+        }
+      },
+  
+      "AttachGateway" : {
+         "Type" : "AWS::EC2::VPCGatewayAttachment",
+         "Properties" : {
+           "VpcId" : { "Ref" : "VPC" },
+           "InternetGatewayId" : { "Ref" : "InternetGateway" }
+         }
+      },
+  
+      "RouteTable" : {
+        "Type" : "AWS::EC2::RouteTable",
+        "Properties" : {
+          "VpcId" : {"Ref" : "VPC"},
+          "Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} } ]
+        }
+      },
+  
+      "Route" : {
+        "Type" : "AWS::EC2::Route",
+        "DependsOn" : "AttachGateway",
+        "Properties" : {
+          "RouteTableId" : { "Ref" : "RouteTable" },
+          "DestinationCidrBlock" : "0.0.0.0/0",
+          "GatewayId" : { "Ref" : "InternetGateway" }
+        }
+      },
+  
+      "SubnetRouteTableAssociation" : {
+        "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+        "Properties" : {
+          "SubnetId" : { "Ref" : "DBSubnet1" },
+          "RouteTableId" : { "Ref" : "RouteTable" }
+        }
+      },
+  
+      "SubnetRouteTableAssociation1" : {
+        "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+        "Properties" : {
+          "SubnetId" : { "Ref" : "DBSubnet2" },
+          "RouteTableId" : { "Ref" : "RouteTable" }
+        }
+      },
+  
+      "MyDBSubnetGroup" : {
+        "Type" : "AWS::RDS::DBSubnetGroup",
+        "Properties" : {
+          "DBSubnetGroupDescription" : "Subnet available for the DMS Demo RDS DB Instance",
+          "SubnetIds" : [{ "Ref" : "DBSubnet1" },{ "Ref" : "DBSubnet2" }]
+        }
+      },
+  
+      "MyDMSSubnetGroup" : {
+        "Type" : "AWS::DMS::ReplicationSubnetGroup",
+        "Properties" : {
+          "ReplicationSubnetGroupDescription" : "Subnet available for the DMS Instances",
+          "SubnetIds" : [{ "Ref" : "DBSubnet1" },{ "Ref" : "DBSubnet2" }]
+        }
+      },
+
+      "myVPCSecurityGroup" : {
+          "Type" : "AWS::EC2::SecurityGroup",
+          "Properties" :
+          {
+             "GroupDescription" : "Security group for DMS Demo RDS DB Instances.",
+             "VpcId" : { "Ref" : "VPC" },
+  
+            "SecurityGroupIngress" : [
+            {
+                "IpProtocol" : "tcp",
+                "FromPort" : "5432",
+                "ToPort" : "5432",
+                "CidrIp" : { "Ref" : "ClientIP"}
+            },
+            {
+                "IpProtocol" : "tcp",
+                "FromPort" : "5432",
+                "ToPort" : "5432",
+                "CidrIp" : "10.0.0.0/24"
+            }]
+        }
+      },
+
+    "LoggingS3Bucket" : {
+        "Type" : "AWS::S3::Bucket",
+        "Properties" : {
+            "AccessControl" : "BucketOwnerFullControl",
+            "BucketName" 	: { "Ref" : "BucketName" }
+        },
+        "Metadata" : {
+            "Comment" : "Bucket for storing files produced by DMS and Glacier Select"
+        }
+    },
+
+    "DMSS3Policy" : {
+    "Type" : "AWS::IAM::Policy",
+        "Properties" : {
+            "PolicyName" : { "Ref" : "DMSS3PolicyName" },
+            "Roles": [ { "Ref" : "DMSS3Role" } ],
+            "PolicyDocument" : {
+                "Version" : "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "s3:PutObject",
+                            "s3:DeleteObject"
+                        ],
+                        "Resource": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    "arn:aws:s3:::",
+                                    {
+                                        "Ref": "BucketName"
+                                    },
+                                    "/*"
+                                ]
+                            ]
+                        }
+                    },
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "s3:ListBucket"
+                        ],
+                        "Resource": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    "arn:aws:s3:::",
+                                    {
+                                        "Ref": "BucketName"
+                                    }
+                                ]
+                            ]
+                        }
+                    }
+            
+                ]
+            }
+        }
+    },
+
+    "DMSS3Role": {
+        "Type": "AWS::IAM::Role",
+        "Properties": {
+           "ManagedPolicyArns": [ "arn:aws:iam::aws:policy/service-role/AmazonDMSVPCManagementRole" ],
+           "Path": "/",
+           "RoleName": { "Ref" : "DMSS3RoleName" },
+           "AssumeRolePolicyDocument" : {
+            "Version" : "2012-10-17",
+            "Statement" : [{
+              "Effect" : "Allow",
+              "Principal" : { "Service" : "dms.amazonaws.com" },
+              "Action" : "sts:AssumeRole"
+            }]
+          }
+        }
+     },
+    
+     "LambdaArchivePolicy" : {
+        "Type" : "AWS::IAM::Policy",
+            "Properties" : {
+                "PolicyName" : {"Ref" : "LambdaArchivalPolicyName"},
+                "Roles": [ { "Ref" : "RDSLambdaArchiveRole" } ],
+                "PolicyDocument" : {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "S3Access",
+                            "Effect": "Allow",
+                            "Action": "s3:*",
+                            "Resource": {
+                                "Fn::Join": [
+                                    "",
+                                    [
+                                        "arn:aws:s3:::",
+                                        {
+                                            "Ref": "BucketName"
+                                        },
+                                        "/*"
+                                    ]
+                                ]
+                            }
+                        },
+                        {
+                            "Sid": "Glacieraccess",
+                            "Effect": "Allow",
+                            "Action": "glacier:*",
+                            "Resource": {
+                                "Fn::Sub": "arn:aws:glacier:${AWS::Region}:${AWS::AccountId}:vaults/${VaultName}"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+    
+        "RDSLambdaArchiveRole": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+               "ManagedPolicyArns": [ "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole" ],
+               "Path": "/",
+               "RoleName": { "Ref" : "LambdaArchivalRoleName"},
+               "AssumeRolePolicyDocument" : {
+                "Version" : "2012-10-17",
+                "Statement" : [{
+                  "Effect" : "Allow",
+                  "Principal" : { "Service" : "lambda.amazonaws.com" },
+                  "Action" : "sts:AssumeRole"
+                }]
+              }
+            }
+         },
+
+        "RDSDB" : {
+            "Type" : "AWS::RDS::DBInstance",
+            "Properties" : {
+              "DBName" : { "Ref" : "RDSDBName" },
+              "AllocatedStorage" : { "Ref" : "RDSDBStorage" },
+              "MasterUsername" : { "Ref" : "RDSDBUsername" },
+              "MasterUserPassword" : { "Ref" : "RDSDBPassword" },
+              "DBInstanceClass" :  { "Ref" : "RDSInstanceType" },
+              "DBInstanceIdentifier" : { "Ref" : "RDSDBInstanceIdentifier" },
+              "Engine" : "postgres",
+              "EngineVersion" : {"Fn::FindInMap" : [ "RDSEngineVersion", { "Ref" : "AWS::Region" }, "ver" ]},
+              "LicenseModel"  : "postgresql-license",
+              "PubliclyAccessible" : "true",
+              "AvailabilityZone" : { "Fn::GetAtt" : [ "DBSubnet1", "AvailabilityZone" ] },
+              "MultiAZ" : "false",
+              "DBSubnetGroupName" : { "Ref" : "MyDBSubnetGroup" },
+              "VPCSecurityGroups" : [ { "Ref" : "myVPCSecurityGroup" }  ],
+              "StorageType"  : "gp2",
+              "Tags" : [ {"Key" : "Application", "Value" : { "Ref" : "AWS::StackId"} } ]
+            }
+          },
+      
+
+        "DMS" : {
+            "Type" : "AWS::DMS::ReplicationInstance",
+            "Properties" : {
+              "ReplicationInstanceIdentifier" : { "Ref" : "DMSName" },
+              "EngineVersion": "2.4.1",
+              "AllocatedStorage" : "20",
+              "ReplicationInstanceClass" : "dms.t2.medium",
+              "PubliclyAccessible" : "false",
+              "AvailabilityZone" : { "Fn::GetAtt" : [ "DBSubnet1", "AvailabilityZone" ] },
+              "MultiAZ" : "false",
+              "ReplicationSubnetGroupIdentifier" : { "Ref" : "MyDMSSubnetGroup" },
+              "VpcSecurityGroupIds" : [ { "Ref" : "myVPCSecurityGroup" }  ]
+            }
+        }
+    },
+
+    "Outputs" : {
+        "S3BucketName" : { 
+            "Description" : "S3 Bucket Name", 
+            "Value" : { "Ref" : "BucketName" } 
+        },
+        "VaultName" : { 
+            "Description" : "Glacier Vault Name", 
+            "Value" : { "Ref" : "VaultName" } 
+        },
+        "DMSName" : { 
+            "Description" : "DMS Name", 
+            "Value" : { "Ref" : "DMSName" } 
+        },
+        "RDSDBEndpoint" : { 
+            "Description" : "RDS DB Endpoint", 
+            "Value" : { "Fn::GetAtt": [ "RDSDB", "Endpoint.Address" ] } 
+        },
+        "RDSDBPort" : { 
+            "Description" : "RDS DB Port", 
+            "Value" : { "Fn::GetAtt": [ "RDSDB", "Endpoint.Port" ] } 
+        },
+        "RDSUserName" : { 
+            "Description" : "RDS Username", 
+            "Value" : { "Ref" : "RDSDBUsername" } 
+        },
+        "RDSDBName" : { 
+            "Description" : "RDS DB Name", 
+            "Value" : { "Ref" : "RDSDBName" }
+        },
+        "ServiceAccessRoleARN" : {
+            "Description" : "Service Access Role ARN",
+            "Value" : {"Fn::GetAtt" : ["DMSS3Role", "Arn"] }
+        },
+        "LambdaArchiveExecutionRole" : { 
+            "Description" : "Lambda Execution Role to Archive data from S3 to Glacier", 
+            "Value" : { "Ref" : "LambdaArchivalRoleName" } 
+        },
+        "DMSS3RoleName" : { 
+            "Description" : "DMS Role Name", 
+            "Value" : { "Ref" : "DMSS3RoleName" }
+        },
+        "RDSJDBCConnectionString": {
+              "Description" : "JDBC connection string for RDS PostgreSQL database",
+              "Value" : { "Fn::Join": [ "", [ "jdbc:postgresql://",
+                                              { "Fn::GetAtt": [ "RDSDB", "Endpoint.Address" ] },
+                                              ":",
+                                              { "Fn::GetAtt": [ "RDSDB", "Endpoint.Port" ] },"/", { "Ref": "RDSDBName" }
+                                              ]]}
+    
+      }
+    }
+}

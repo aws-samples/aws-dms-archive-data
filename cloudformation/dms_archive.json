@@ -100,48 +100,7 @@
         "MaxLength": "63",
         "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9-]*",
         "ConstraintDescription" : "must begin with a letter and contain a minimum of 4 alphanumeric characters."
-    },
-
-    "DMSS3PolicyName": {
-        "Default": "dmsvpcs3policy",
-        "Description" : "Enter DMS Policy name",
-        "Type": "String",
-        "MinLength": "4",
-        "MaxLength": "63",
-        "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9-]*",
-        "ConstraintDescription" : "must begin with a letter and contain a minimum of 4 alphanumeric characters."
-    },
-
-    "DMSS3RoleName": {
-        "Default": "dms-vpc-role",
-        "Description" : "Enter DMS Role name",
-        "Type": "String",
-        "MinLength": "4",
-        "MaxLength": "63",
-        "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9-]*",
-        "ConstraintDescription" : "must begin with a letter and contain a minimum of 4 alphanumeric characters."
-    },
-    
-    "LambdaArchivalPolicyName": {
-        "Default": "lambda-to-archive-policy",
-        "Description" : "Enter Lambda archival Policy name",
-        "Type": "String",
-        "MinLength": "4",
-        "MaxLength": "63",
-        "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9-]*",
-        "ConstraintDescription" : "must begin with a letter and contain a minimum of 4 alphanumeric characters."
-    },
-
-    "LambdaArchivalRoleName": {
-        "Default": "rdsarchive-lambda-execution",
-        "Description" : "Enter Lambda Archival Role name",
-        "Type": "String",
-        "MinLength": "4",
-        "MaxLength": "63",
-        "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9-]*",
-        "ConstraintDescription" : "must begin with a letter and contain a minimum of 4 alphanumeric characters."
     }
-
 },
 
 "Mappings":
@@ -298,7 +257,7 @@
     "DMSS3Policy" : {
     "Type" : "AWS::IAM::Policy",
         "Properties" : {
-            "PolicyName" : { "Ref" : "DMSS3PolicyName" },
+            "PolicyName" : "dmsvpcs3policy",
             "Roles": [ { "Ref" : "DMSS3Role" } ],
             "PolicyDocument" : {
                 "Version" : "2012-10-17",
@@ -350,7 +309,7 @@
         "Properties": {
            "ManagedPolicyArns": [ "arn:aws:iam::aws:policy/service-role/AmazonDMSVPCManagementRole" ],
            "Path": "/",
-           "RoleName": { "Ref" : "DMSS3RoleName" },
+           "RoleName": "dms-vpc-role",
            "AssumeRolePolicyDocument" : {
             "Version" : "2012-10-17",
             "Statement" : [{
@@ -365,7 +324,7 @@
      "LambdaArchivePolicy" : {
         "Type" : "AWS::IAM::Policy",
             "Properties" : {
-                "PolicyName" : {"Ref" : "LambdaArchivalPolicyName"},
+                "PolicyName" : "lambda-to-archive-policy",
                 "Roles": [ { "Ref" : "RDSLambdaArchiveRole" } ],
                 "PolicyDocument" : {
                     "Version": "2012-10-17",
@@ -405,7 +364,7 @@
             "Properties": {
                "ManagedPolicyArns": [ "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole" ],
                "Path": "/",
-               "RoleName": { "Ref" : "LambdaArchivalRoleName"},
+               "RoleName": "rdsarchive-lambda-execution",
                "AssumeRolePolicyDocument" : {
                 "Version" : "2012-10-17",
                 "Statement" : [{
@@ -488,14 +447,6 @@
         "ServiceAccessRoleARN" : {
             "Description" : "Service Access Role ARN",
             "Value" : {"Fn::GetAtt" : ["DMSS3Role", "Arn"] }
-        },
-        "LambdaArchiveExecutionRole" : { 
-            "Description" : "Lambda Execution Role to Archive data from S3 to Glacier", 
-            "Value" : { "Ref" : "LambdaArchivalRoleName" } 
-        },
-        "DMSS3RoleName" : { 
-            "Description" : "DMS Role Name", 
-            "Value" : { "Ref" : "DMSS3RoleName" }
         },
         "RDSJDBCConnectionString": {
               "Description" : "JDBC connection string for RDS PostgreSQL database",

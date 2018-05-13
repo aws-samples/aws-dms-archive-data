@@ -100,7 +100,17 @@
         "MaxLength": "63",
         "AllowedPattern" : "[a-zA-Z][a-zA-Z0-9-]*",
         "ConstraintDescription" : "must begin with a letter and contain a minimum of 4 alphanumeric characters."
-    }
+    },
+
+    "ExistsDMSRole": {
+        "Default": "N",
+        "Description": "If the dms-vpc-role exists in your account, please enter Y, else enter N",
+        "Type": "String",
+        "MinLength": "1",
+        "MaxLength": "1",
+        "AllowedPattern" : "[YN]",
+        "ConstraintDescription" : "Permitted value is Y or N."
+      }
 },
 
 "Mappings":
@@ -121,6 +131,10 @@
         "ap-south-1"        : {"ver" : "9.6.5"}
     }
 },
+
+"Conditions": {
+    "NotExistsDMSVPCRole": {"Fn::Equals": [{"Ref": "ExistsDMSRole"}, "N"]}
+  },
 
 "Resources" : {
     "VPC" : {
@@ -254,11 +268,32 @@
         }
     },
 
+    "DMSS3Role": {
+        "Type": "AWS::IAM::Role",
+        "Condition" : "NotExistsDMSVPCRole",
+        "Properties": {
+           "ManagedPolicyArns": [ "arn:aws:iam::aws:policy/service-role/AmazonDMSVPCManagementRole" ],
+           "Path": "/",
+           "RoleName": "dms-vpc-role",
+           "AssumeRolePolicyDocument" : {
+            "Version" : "2012-10-17",
+            "Statement" : [{
+              "Effect" : "Allow",
+              "Principal" : { "Service" : "dms.amazonaws.com" },
+              "Action" : "sts:AssumeRole"
+            }]
+          }
+        }
+     },
+
     "DMSS3Policy" : {
-    "Type" : "AWS::IAM::Policy",
+        "Type" : "AWS::IAM::Policy",
+        "Metadata" : {
+            "Comment" : {"Fn::If" : ["NotExistsDMSVPCRole", {"Fn::GetAtt": [ "DMSS3Role", "Arn" ] }, "dms-vpc-role"]}
+        },
         "Properties" : {
             "PolicyName" : "dmsvpcs3policy",
-            "Roles": [ { "Ref" : "DMSS3Role" } ],
+            "Roles": ["dms-vpc-role"],
             "PolicyDocument" : {
                 "Version" : "2012-10-17",
                 "Statement": [
@@ -303,23 +338,6 @@
             }
         }
     },
-
-    "DMSS3Role": {
-        "Type": "AWS::IAM::Role",
-        "Properties": {
-           "ManagedPolicyArns": [ "arn:aws:iam::aws:policy/service-role/AmazonDMSVPCManagementRole" ],
-           "Path": "/",
-           "RoleName": "dms-vpc-role",
-           "AssumeRolePolicyDocument" : {
-            "Version" : "2012-10-17",
-            "Statement" : [{
-              "Effect" : "Allow",
-              "Principal" : { "Service" : "dms.amazonaws.com" },
-              "Action" : "sts:AssumeRole"
-            }]
-          }
-        }
-     },
     
      "LambdaArchivePolicy" : {
         "Type" : "AWS::IAM::Policy",
@@ -443,10 +461,6 @@
         "RDSDBName" : { 
             "Description" : "RDS DB Name", 
             "Value" : { "Ref" : "RDSDBName" }
-        },
-        "ServiceAccessRoleARN" : {
-            "Description" : "Service Access Role ARN",
-            "Value" : {"Fn::GetAtt" : ["DMSS3Role", "Arn"] }
         },
         "RDSJDBCConnectionString": {
               "Description" : "JDBC connection string for RDS PostgreSQL database",

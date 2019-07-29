@@ -421,7 +421,7 @@
             "Type" : "AWS::DMS::ReplicationInstance",
             "Properties" : {
               "ReplicationInstanceIdentifier" : { "Ref" : "DMSName" },
-              "EngineVersion": "2.4.1",
+              "EngineVersion": "3.1.3",
               "AllocatedStorage" : "20",
               "ReplicationInstanceClass" : "dms.t2.medium",
               "PubliclyAccessible" : "false",

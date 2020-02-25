@@ -1,6 +1,6 @@
 {
 "AWSTemplateFormatVersion" : "2010-09-09",
-"Description" : "Create resources for Glacier Select blog.",
+"Description" : "Create resources for  -> how to archive data from relational databases to Amazon Glacier using AWS DMS blog post.",
 
 "Parameters" : {
 
@@ -67,8 +67,8 @@
       "RDSInstanceType":{
          "Description":"RDS PostgreSQL DB instance type",
          "Type":"String",
-         "Default":"db.t2.medium",
-         "AllowedValues":[ "db.t2.small", "db.t2.medium"],
+         "Default":"db.t3.medium",
+         "AllowedValues":[ "db.t3.medium", "db.t3.large"],
          "ConstraintDescription":"Must be a valid RDS PostgreSQL instance type."
       },
   
@@ -117,18 +117,18 @@
 {
     "RDSEngineVersion" :
    {
-        "us-east-1"         : {"ver" : "9.6.5"},
-        "us-west-1"         : {"ver" : "9.6.5"},
-        "us-west-2"         : {"ver" : "9.6.5"},
-        "ap-northeast-1"    : {"ver" : "9.6.5"},
-        "ap-northeast-2"    : {"ver" : "9.6.5"},
-        "ap-southeast-1"    : {"ver" : "9.6.5"},
-        "ap-southeast-2"    : {"ver" : "9.6.5"},
-        "eu-west-1"         : {"ver" : "9.6.5"},
-        "eu-central-1"      : {"ver" : "9.6.5"},
-        "sa-east-1"         : {"ver" : "9.6.5"},
-        "us-gov-west-1"     : {"ver" : "9.6.5"},
-        "ap-south-1"        : {"ver" : "9.6.5"}
+        "us-east-1"         : {"ver" : "11.5"},
+		"us-east-2"         : {"ver" : "11.5"},
+		"us-west-1"         : {"ver" : "11.5"},
+        "us-west-2"         : {"ver" : "11.5"},
+        "ap-northeast-1"    : {"ver" : "11.5"},
+        "ap-northeast-2"    : {"ver" : "11.5"},
+        "ap-southeast-1"    : {"ver" : "11.5"},
+        "ap-southeast-2"    : {"ver" : "11.5"},
+        "eu-west-1"         : {"ver" : "11.5"},
+        "eu-central-1"      : {"ver" : "11.5"},
+        "sa-east-1"         : {"ver" : "11.5"},
+        "ap-south-1"        : {"ver" : "11.5"}
     }
 },
 
@@ -287,12 +287,12 @@
      },
 
     "DMSS3Policy" : {
-        "Type" : "AWS::IAM::Policy",
+        "Type" : "AWS::IAM::ManagedPolicy",
         "Metadata" : {
             "Comment" : {"Fn::If" : ["NotExistsDMSVPCRole", {"Fn::GetAtt": [ "DMSS3Role", "Arn" ] }, "dms-vpc-role"]}
         },
         "Properties" : {
-            "PolicyName" : "dmsvpcs3policy",
+            "ManagedPolicyName" : "dmsvpcs3policy",
             "Roles": ["dms-vpc-role"],
             "PolicyDocument" : {
                 "Version" : "2012-10-17",
@@ -340,17 +340,16 @@
     },
     
      "LambdaArchivePolicy" : {
-        "Type" : "AWS::IAM::Policy",
+        "Type" : "AWS::IAM::ManagedPolicy",
             "Properties" : {
-                "PolicyName" : "lambda-to-archive-policy",
-                "Roles": [ { "Ref" : "RDSLambdaArchiveRole" } ],
-                "PolicyDocument" : {
+                "ManagedPolicyName" : "lambda-to-archive-policy",
+                 "PolicyDocument" : {
                     "Version": "2012-10-17",
                     "Statement": [
                         {
                             "Sid": "S3Access",
                             "Effect": "Allow",
-                            "Action": "s3:*",
+                            "Action": ["s3:GetObject","s3:PutObject","s3:DeleteObject"]	,
                             "Resource": {
                                 "Fn::Join": [
                                     "",
@@ -364,11 +363,37 @@
                                 ]
                             }
                         },
-                        {
+						
+					{
+          
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket"
+            ],
+             "Resource": {
+                            "Fn::Join": [
+                                "",
+                                [
+                                    "arn:aws:s3:::",
+                                    {
+                                        "Ref": "BucketName"
+                                    }
+                                ]
+                            ]
+                        }
+        },
+					
+					
+				      {
                             "Sid": "Glacieraccess",
                             "Effect": "Allow",
-                            "Action": "glacier:*",
-                            "Resource": {
+                            "Action": ["glacier:DescribeVault",
+							          "glacier:UploadArchive",
+									  "glacier:DescribeJob",
+									  "glacier:DeleteArchive",
+									  "glacier:InitiateJob",
+									  "glacier:GetJobOutput"],
+							         "Resource": {
                                 "Fn::Sub": "arn:aws:glacier:${AWS::Region}:${AWS::AccountId}:vaults/${VaultName}"
                             }
                         }
@@ -380,9 +405,14 @@
         "RDSLambdaArchiveRole": {
             "Type": "AWS::IAM::Role",
             "Properties": {
-               "ManagedPolicyArns": [ "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole" ],
+               "ManagedPolicyArns": [ "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+			   {
+                    "Ref": "LambdaArchivePolicy"
+                }
+			   ],
                "Path": "/",
                "RoleName": "rdsarchive-lambda-execution",
+			   
                "AssumeRolePolicyDocument" : {
                 "Version" : "2012-10-17",
                 "Statement" : [{
@@ -421,7 +451,6 @@
             "Type" : "AWS::DMS::ReplicationInstance",
             "Properties" : {
               "ReplicationInstanceIdentifier" : { "Ref" : "DMSName" },
-              "EngineVersion": "2.4.1",
               "AllocatedStorage" : "20",
               "ReplicationInstanceClass" : "dms.t2.medium",
               "PubliclyAccessible" : "false",

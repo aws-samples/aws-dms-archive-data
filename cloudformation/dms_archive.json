@@ -54,7 +54,7 @@
       },
 
       "RDSDBPassword": {
-        "Default": "PrUnEvOvAn31tis",
+        "Default": "",
         "NoEcho": "true",
         "Description" : "Enter password for RDS PostgreSQL Admin user",
         "Type": "String",

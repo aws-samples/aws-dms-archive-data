@@ -43,7 +43,7 @@
     },
   
     "RDSDBUsername": {
-        "Default": "rsagisetty",
+        "Default": "sagisetty",
         "NoEcho": "false",
         "Description" : "Enter database Admin username for RDS PostgreSQL",
         "Type": "String",

@@ -5,7 +5,7 @@
 "Parameters" : {
 
     "BucketName": {
-      "Description" : "Enter the S3 bucket name",
+      "Description" : "dms-archive-s3-poc",
       "Type": "String",
       "MinLength": "4",
       "MaxLength": "63",
@@ -14,7 +14,7 @@
     },
 
     "VaultName": {
-        "Description" : "Enter the Glacier Vault name",
+        "Description" : "rdsarchive",
         "Type": "String",
         "MinLength": "4",
         "MaxLength": "63",
@@ -23,8 +23,8 @@
       },
 
     "RDSDBName": {
-        "Default": "ukdb",
-        "Description" : "Enter PostgreSQL Database name",
+        "Default": "postgres",
+        "Description" : "postgres",
         "Type": "String",
         "MinLength": "4",
         "MaxLength": "63",
@@ -33,8 +33,8 @@
       },
 
     "RDSDBInstanceIdentifier": {
-        "Default": "archivedb",
-        "Description" : "Enter a name for your PostgreSQL Database identifier",
+        "Default": "sandbox-ods",
+        "Description" : "sandbox-ods",
         "Type": "String",
         "MinLength": "4",
         "MaxLength": "63",
@@ -43,7 +43,7 @@
     },
   
     "RDSDBUsername": {
-        "Default": "dbadmin",
+        "Default": "rsagisetty",
         "NoEcho": "false",
         "Description" : "Enter database Admin username for RDS PostgreSQL",
         "Type": "String",
@@ -54,7 +54,7 @@
       },
 
       "RDSDBPassword": {
-        "Default": "postgres123",
+        "Default": "PrUnEvOvAn31tis",
         "NoEcho": "true",
         "Description" : "Enter password for RDS PostgreSQL Admin user",
         "Type": "String",
@@ -93,7 +93,7 @@
      },
   
     "DMSName": {
-        "Default": "rds-to-s3",
+        "Default": "rds-to-s3-poc",
         "Description" : "Enter DMS Replication instance name",
         "Type": "String",
         "MinLength": "4",

@@ -1,5 +1,5 @@
 #Description: Function to initiate Glacier Select job. Glacier Select will store the output in the specified S3 bucket  
-#Runtime:python 2.7 
+#Runtime:python 3.7 
 #Assumptions: Glacier retrieval job parameters included "Standard" tier. Hence, it may take up to 3 to 5 hours to see the result.For faster #retrieval Expedited option can be considered
 #Inputs/ Environment variables - Archiveid, Glacier vault name, output S3 bucket and prefix name
 
